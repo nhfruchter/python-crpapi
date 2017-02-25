@@ -108,3 +108,7 @@ class CRPApi(object):
     def congCmteIndus(self, **kwargs):
         results = self._apicall('congCmteIndus', kwargs)['committee']['member']
         return results
+        
+    def independentExpend(self, **kwargs):
+        results = self._apicall('independentExpend', kwargs)
+        return results
