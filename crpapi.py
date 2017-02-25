@@ -1,18 +1,18 @@
 """ 
 	Python library for interacting with the CRP API.
 
-    The CRP API (http://www.opensecrets.org/action/api_doc.php) provides campaign 
+    The CRP API (https://www.opensecrets.org/api) provides campaign 
 	finance and other data from the Center for Responsive Politics.
 
-	See README.rst for methods and usage
+	See README.md for methods and usage
 """
 
-__author__ = "James Turk (jturk@sunlightfoundation.com)"
+__author__ = "James Turk (jturk@sunlightfoundation.com); forked by Nathaniel Fruchter (fruchter@mit.edu)"
 __version__ = "0.1.0"
 __copyright__ = "Copyright (c) 2009 Sunlight Labs"
 __license__ = "BSD"
 
-import urllib, urllib2
+import requests, requests.exceptions
 try:
     import json
 except ImportError:
@@ -28,82 +28,83 @@ class CRPApiObject(object):
 
 # namespaces #
 
-class CRP(object):
+class CRPApi(object):
 
-    apikey = None
+    SUPPORTED_OUTPUTS = set(['json', 'xml', 'doc'])
+    
+    def __init__(self, apikey, output='json'):
+        self.apikey = apikey
+        
+        if output not in self.SUPPORTED_OUTPUTS:
+            raise ValueError("output must be one of %s" % self.SUPPORTED_OUTPUTS)
+        else:    
+            self.output = output
+            
+    def _apicall(self, func, params):
+        """Do an API call against the OpenSecrets.org API. 
+        
+        :func = API call
+            see :https://www.opensecrets.org/api/admin/index.php?function=user_api_list
+        :params = parameters passed to API function call
+        """
 
-    @staticmethod
-    def _apicall(func, params):
-        if CRP.apikey is None:
-            raise CRPApiError('Missing CRP apikey')
-
-        url = 'http://api.opensecrets.org/?method=%s&output=json&apikey=%s&%s' % \
-              (func, CRP.apikey, urllib.urlencode(params))
+        baseURL = 'http://www.opensecrets.org/api/'
+        
+        # Set output format
+        apicall = {
+            'method': func,
+            'apikey': self.apikey,
+            'output': self.output
+        }
+        apicall.update(params)
         
         try:
-            response = urllib2.urlopen(url).read()
-            return json.loads(response)['response']
-        except urllib2.HTTPError, e:
-            raise CRPApiError(e.read())
-        except (ValueError, KeyError), e:
-            raise CRPApiError('Invalid Response')
+            response = requests.get(baseURL, params=apicall)
+            if self.output == 'json':                
+                return json.loads(response.content)['response']
+            else:
+                return output    
+        except requests.exceptions.RequestException as e:
+            raise e
+        except (ValueError, KeyError) as e:
+            raise CRPApiError('Unable to parse invalid response from the API')        
 
-    class getLegislators(object):
-        @staticmethod
-        def get(**kwargs):
-            results = CRP._apicall('getLegislators', kwargs)['legislator']
-            return results
+    def getLegislators(self, **kwargs):
+        results = self._apicall('getLegislators', kwargs)['legislator']
+        return results
 
-    class memPFDprofile(object):
-        @staticmethod
-        def get(**kwargs):
-            results = CRP._apicall('memPFDprofile', kwargs)['member_profile']
-            return results
+    def memPFDprofile(self, **kwargs):
+        results = self._apicall('memPFDprofile', kwargs)['member_profile']
+        return results
 
-    class candSummary(object):
-        @staticmethod
-        def get(**kwargs):
-            result = CRP._apicall('candSummary', kwargs)['summary']
-            return result['@attributes']
+    def candSummary(self, **kwargs):        
+        result = self._apicall('candSummary', kwargs)['summary']
+        return result['@attributes']
 
-    class candContrib(object):
-        @staticmethod
-        def get(**kwargs):
-            results = CRP._apicall('candContrib', kwargs)['contributors']['contributor']
-            return results
+    def candContrib(self, **kwargs):
+        results = self._apicall('candContrib', kwargs)['contributors']['contributor']
+        return results
 
-    class candIndustry(object):
-        @staticmethod
-        def get(**kwargs):
-            results = CRP._apicall('candIndustry', kwargs)['industries']['industry']
-            return results
+    def candIndustry(self, **kwargs):
+        results = self._apicall('candIndustry', kwargs)['industries']['industry']
+        return results
 
-    class candSector(object):
-        @staticmethod
-        def get(**kwargs):
-            results = CRP._apicall('candSector', kwargs)['sectors']['sector']
-            return results
+    def candSector(self, **kwargs):
+        results = self._apicall('candSector', kwargs)['sectors']['sector']
+        return results
 
-    class candIndByInd(object):
-        @staticmethod
-        def get(**kwargs):
-            result = CRP._apicall('CandIndByInd', kwargs)['candIndus']
-            return result['@attributes']
+    def candIndByInd(self, **kwargs):
+        result = self._apicall('CandIndByInd', kwargs)['candIndus']
+        return result['@attributes']
 
-    class getOrgs(object):
-        @staticmethod
-        def get(**kwargs):
-            results = CRP._apicall('getOrgs', kwargs)['organization']
-            return results
+    def getOrgs(self, **kwargs):
+        results = self._apicall('getOrgs', kwargs)['organization']
+        return results
             
-    class orgSummary(object):
-        @staticmethod
-        def get(**kwargs):
-            results = CRP._apicall('orgSummary', kwargs)['organization']
-            return results
+    def orgSummary(self, **kwargs):
+        results = self._apicall('orgSummary', kwargs)['organization']
+        return results
             
-    class congCmteIndus(object):
-        @staticmethod
-        def get(**kwargs):
-            results = CRP._apicall('congCmteIndus', kwargs)['committee']['member']
-            return results
+    def congCmteIndus(self, **kwargs):
+        results = self._apicall('congCmteIndus', kwargs)['committee']['member']
+        return results
